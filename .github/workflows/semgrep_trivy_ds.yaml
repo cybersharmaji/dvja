@@ -51,19 +51,17 @@ jobs:
     # Step 6: Format Semgrep Report to Tabular Format
     - name: Format Semgrep Report
       run: |
-        python3 -c "
-import json, csv
-with open('semgrep_results.json') as f:
-    data = json.load(f)['results']
-    rows = [
-        {'Check': r['check_id'], 'Path': r['path'], 'Start Line': r['start']['line'], 'Message': r['extra']['message']}
-        for r in data
-    ]
-with open('semgrep_results_formatted.csv', 'w') as f:
-    writer = csv.DictWriter(f, fieldnames=['Check', 'Path', 'Start Line', 'Message'])
-    writer.writeheader()
-    writer.writerows(rows)
-"
+        echo 'import json, csv' > format_semgrep.py
+        echo 'with open("semgrep_results.json") as f:' >> format_semgrep.py
+        echo '    data = json.load(f)["results"]' >> format_semgrep.py
+        echo '    rows = [{' >> format_semgrep.py
+        echo '        "Check": r["check_id"], "Path": r["path"], "Start Line": r["start"]["line"], "Message": r["extra"]["message"]' >> format_semgrep.py
+        echo '    } for r in data]' >> format_semgrep.py
+        echo 'with open("semgrep_results_formatted.csv", "w") as f:' >> format_semgrep.py
+        echo '    writer = csv.DictWriter(f, fieldnames=["Check", "Path", "Start Line", "Message"])' >> format_semgrep.py
+        echo '    writer.writeheader()' >> format_semgrep.py
+        echo '    writer.writerows(rows)' >> format_semgrep.py
+        python3 format_semgrep.py
         echo "Semgrep results formatted and saved to semgrep_results_formatted.csv."
 
     # Step 7: Display results in logs
