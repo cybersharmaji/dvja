@@ -12,6 +12,11 @@ pdf.set_font("Arial", size=16, style="B")
 pdf.cell(0, 10, "Cybersecurity Scan Report", ln=True, align="C")
 pdf.ln(10)
 
+# Function to sanitize text for FPDF
+def sanitize_text(text):
+    # Replace unsupported characters with a safe alternative
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
 # Function to add findings
 def add_findings(tool_name, findings):
     pdf.set_font("Arial", size=14, style="B")
@@ -20,7 +25,8 @@ def add_findings(tool_name, findings):
     pdf.set_font("Arial", size=12)
     if findings:
         for finding in findings:
-            pdf.multi_cell(0, 10, f"- {finding}")
+            sanitized_finding = sanitize_text(f"- {finding}")
+            pdf.multi_cell(0, 10, sanitized_finding)
             pdf.ln(2)
     else:
         pdf.cell(0, 10, "No findings detected.", ln=True)
