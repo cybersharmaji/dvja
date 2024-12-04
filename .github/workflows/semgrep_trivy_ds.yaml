@@ -40,25 +40,25 @@ jobs:
         detect-secrets scan > detect_secrets_baseline.json
         yes s | detect-secrets audit detect_secrets_baseline.json | tee detect_secrets_audit_results.txt
 
-    # Step 5: Run Semgrep Scan
+    # Step 5: Run Semgrep Scan with OWASP Top 10 Ruleset
     - name: Run Semgrep Scan
       run: |
-        semgrep --config auto --output semgrep_results.json --json
+        semgrep --config "p/owasp-top-ten" --output semgrep_results.json --json
         echo "Semgrep scan completed. Results saved to semgrep_results.json."
       env:
         SEMGREP_ALLOW_FETCH: 1
 
-    # Step 6: Format Semgrep Report to Tabular Format
+    # Step 6: Format Semgrep Report to Include Severity
     - name: Format Semgrep Report
       run: |
         echo 'import json, csv' > format_semgrep.py
         echo 'with open("semgrep_results.json") as f:' >> format_semgrep.py
         echo '    data = json.load(f)["results"]' >> format_semgrep.py
         echo '    rows = [{' >> format_semgrep.py
-        echo '        "Check": r["check_id"], "Path": r["path"], "Start Line": r["start"]["line"], "Message": r["extra"]["message"]' >> format_semgrep.py
+        echo '        "Check": r["check_id"], "Path": r["path"], "Start Line": r["start"]["line"], "Message": r["extra"]["message"], "Severity": r["extra"].get("severity", "UNKNOWN")' >> format_semgrep.py
         echo '    } for r in data]' >> format_semgrep.py
         echo 'with open("semgrep_results_formatted.csv", "w") as f:' >> format_semgrep.py
-        echo '    writer = csv.DictWriter(f, fieldnames=["Check", "Path", "Start Line", "Message"])' >> format_semgrep.py
+        echo '    writer = csv.DictWriter(f, fieldnames=["Check", "Path", "Start Line", "Message", "Severity"])' >> format_semgrep.py
         echo '    writer.writeheader()' >> format_semgrep.py
         echo '    writer.writerows(rows)' >> format_semgrep.py
         python3 format_semgrep.py
