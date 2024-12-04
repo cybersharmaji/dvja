@@ -1,0 +1,127 @@
+name: Security Scans (Trivy, Detect-Secrets, Semgrep, and PDF Report)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  security-scans:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the current repository
+    - name: Checkout Current Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # Step 2: Run Trivy Repo Scan
+    - name: Run Trivy Repo Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        format: 'json'
+        output: 'trivy_scan_results.json'
+
+    # Step 3: Install Dependencies for Detect-Secrets and Semgrep
+    - name: Install Dependencies
+      run: |
+        python3 -m pip install detect-secrets semgrep fpdf
+
+    # Step 4: Run Detect-Secrets Scan
+    - name: Run Detect-Secrets Scan
+      run: |
+        detect-secrets scan > detect_secrets_baseline.json
+        yes s | detect-secrets audit detect_secrets_baseline.json | tee detect_secrets_audit_results.txt
+
+    # Step 5: Run Semgrep Scan with OWASP Top 10 Ruleset
+    - name: Run Semgrep Scan
+      run: |
+        semgrep --config "p/owasp-top-ten" --output semgrep_results.json --json
+      env:
+        SEMGREP_ALLOW_FETCH: 1
+
+    # Step 6: Format Semgrep Report
+    - name: Format Semgrep Report
+      run: |
+        echo 'import json, csv' > format_semgrep.py
+        echo 'with open("semgrep_results.json") as f:' >> format_semgrep.py
+        echo '    data = json.load(f)["results"]' >> format_semgrep.py
+        echo '    rows = [{' >> format_semgrep.py
+        echo '        "Check": r["check_id"], "Path": r["path"], "Start Line": r["start"]["line"], "Message": r["extra"]["message"], "Severity": r["extra"].get("severity", "UNKNOWN")' >> format_semgrep.py
+        echo '    } for r in data]' >> format_semgrep.py
+        echo 'with open("semgrep_results_formatted.csv", "w") as f:' >> format_semgrep.py
+        echo '    writer = csv.DictWriter(f, fieldnames=["Check", "Path", "Start Line", "Message", "Severity"])' >> format_semgrep.py
+        echo '    writer.writeheader()' >> format_semgrep.py
+        echo '    writer.writerows(rows)' >> format_semgrep.py
+        python3 format_semgrep.py
+
+    # Step 7: Generate Combined PDF Report
+    - name: Generate PDF Report
+      run: |
+        python3 - <<EOF
+import json
+from fpdf import FPDF
+
+# Initialize PDF
+pdf = FPDF()
+pdf.set_auto_page_break(auto=True, margin=15)
+pdf.add_page()
+pdf.set_font("Arial", size=12)
+
+# Title
+pdf.set_font("Arial", size=16, style="B")
+pdf.cell(0, 10, "Cybersecurity Scan Report", ln=True, align="C")
+pdf.ln(10)
+
+# Function to add findings
+def add_findings(tool_name, findings):
+    pdf.set_font("Arial", size=14, style="B")
+    pdf.cell(0, 10, f"{tool_name} Findings", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", size=12)
+    if findings:
+        for finding in findings:
+            pdf.multi_cell(0, 10, f"- {finding}")
+            pdf.ln(2)
+    else:
+        pdf.cell(0, 10, "No findings detected.", ln=True)
+    pdf.ln(10)
+
+# Trivy Results
+with open("trivy_scan_results.json") as f:
+    trivy_results = json.load(f)
+    trivy_findings = [f"Target: {result['Target']}, Vulnerability: {vul['VulnerabilityID']} - {vul['Description']}"
+                      for result in trivy_results.get('Results', [])
+                      for vul in result.get('Vulnerabilities', [])]
+add_findings("Trivy", trivy_findings)
+
+# Detect-Secrets Results
+with open("detect_secrets_audit_results.txt") as f:
+    detect_secrets_findings = f.readlines()
+add_findings("Detect-Secrets", detect_secrets_findings)
+
+# Semgrep Results
+with open("semgrep_results.json") as f:
+    semgrep_results = json.load(f)
+    semgrep_findings = [
+        f"Check: {result['check_id']}, Path: {result['path']}, Line: {result['start']['line']}, Severity: {result['extra'].get('severity', 'UNKNOWN')} - {result['extra']['message']}"
+        for result in semgrep_results.get("results", [])
+    ]
+add_findings("Semgrep", semgrep_findings)
+
+# Save PDF
+pdf.output("security_scan_report.pdf")
+EOF
+
+    # Step 8: Upload PDF Report as Artifact
+    - name: Upload PDF Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-scan-report
+        path: security_scan_report.pdf
