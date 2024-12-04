@@ -46,61 +46,9 @@ jobs:
       env:
         SEMGREP_ALLOW_FETCH: 1
 
-    # Step 6: Generate Combined PDF Report
+    # Step 6: Fetch and Run the Python Script to Generate PDF
     - name: Generate PDF Report
       run: |
-        echo 'import json' > generate_pdf.py
-        echo 'from fpdf import FPDF' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Initialize PDF' >> generate_pdf.py
-        echo 'pdf = FPDF()' >> generate_pdf.py
-        echo 'pdf.set_auto_page_break(auto=True, margin=15)' >> generate_pdf.py
-        echo 'pdf.add_page()' >> generate_pdf.py
-        echo 'pdf.set_font("Arial", size=12)' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Title' >> generate_pdf.py
-        echo 'pdf.set_font("Arial", size=16, style="B")' >> generate_pdf.py
-        echo 'pdf.cell(0, 10, "Cybersecurity Scan Report", ln=True, align="C")' >> generate_pdf.py
-        echo 'pdf.ln(10)' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Function to add findings' >> generate_pdf.py
-        echo 'def add_findings(tool_name, findings):' >> generate_pdf.py
-        echo '    pdf.set_font("Arial", size=14, style="B")' >> generate_pdf.py
-        echo '    pdf.cell(0, 10, f"{tool_name} Findings", ln=True)' >> generate_pdf.py
-        echo '    pdf.ln(5)' >> generate_pdf.py
-        echo '    pdf.set_font("Arial", size=12)' >> generate_pdf.py
-        echo '    if findings:' >> generate_pdf.py
-        echo '        for finding in findings:' >> generate_pdf.py
-        echo '            pdf.multi_cell(0, 10, f"- {finding}")' >> generate_pdf.py
-        echo '            pdf.ln(2)' >> generate_pdf.py
-        echo '    else:' >> generate_pdf.py
-        echo '        pdf.cell(0, 10, "No findings detected.", ln=True)' >> generate_pdf.py
-        echo '    pdf.ln(10)' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Trivy Results' >> generate_pdf.py
-        echo 'with open("trivy_scan_results.json") as f:' >> generate_pdf.py
-        echo '    trivy_results = json.load(f)' >> generate_pdf.py
-        echo '    trivy_findings = [f"Target: {result[\\\"Target\\\"]}, Vulnerability: {vul[\\\"VulnerabilityID\\\"]} - {vul[\\\"Description\\\"]}"' >> generate_pdf.py
-        echo '                      for result in trivy_results.get("Results", [])' >> generate_pdf.py
-        echo '                      for vul in result.get("Vulnerabilities", [])]' >> generate_pdf.py
-        echo 'add_findings("Trivy", trivy_findings)' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Detect-Secrets Results' >> generate_pdf.py
-        echo 'with open("detect_secrets_audit_results.txt") as f:' >> generate_pdf.py
-        echo '    detect_secrets_findings = f.readlines()' >> generate_pdf.py
-        echo 'add_findings("Detect-Secrets", detect_secrets_findings)' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Semgrep Results' >> generate_pdf.py
-        echo 'with open("semgrep_results.json") as f:' >> generate_pdf.py
-        echo '    semgrep_results = json.load(f)' >> generate_pdf.py
-        echo '    semgrep_findings = [' >> generate_pdf.py
-        echo '        f"Check: {result[\\\"check_id\\\"]}, Path: {result[\\\"path\\\"]}, Line: {result[\\\"start\\\"][\\\"line\\\"]}, Severity: {result[\\\"extra\\\"].get(\\\"severity\\\", \\\"UNKNOWN\\\")} - {result[\\\"extra\\\"][\\\"message\\\"]}"' >> generate_pdf.py
-        echo '        for result in semgrep_results.get("results", [])' >> generate_pdf.py
-        echo '    ]' >> generate_pdf.py
-        echo 'add_findings("Semgrep", semgrep_findings)' >> generate_pdf.py
-        echo '' >> generate_pdf.py
-        echo '# Save PDF' >> generate_pdf.py
-        echo 'pdf.output("security_scan_report.pdf")' >> generate_pdf.py
         python3 generate_pdf.py
 
     # Step 7: Upload PDF Report as Artifact
